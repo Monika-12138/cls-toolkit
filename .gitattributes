@@ -1,0 +1,2 @@
+# 目标运行环境是 Kali Linux —— 统一用 LF 行尾，避免 Windows 开发时混入 CRLF
+* text=auto eol=lf

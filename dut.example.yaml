@@ -1,0 +1,34 @@
+# DUT（Device Under Test）前置信息 —— 填一次，注入所有工具命令。
+# 复制成 dut.yaml 再填真实值（dut.yaml 不进 git）。
+
+# —— 设备标识（用于报告 DUT Identification） ——
+toe_name: ASKEY RTM7230T
+model: RTM7230T-D171
+firmware_version: "1.0"
+vendor: ASKEY
+
+# —— 网络 ——
+ip: 192.168.1.1                 # DUT 的 IPv4
+lan_subnet: 192.168.1.0/24      # 局域网网段（netdiscover 用）
+portal_url: https://192.168.1.1 # 配置门户 URL（Web 类测试用）
+wifi_ssid: ""
+wifi_password: ""
+
+# —— 凭据 ——
+default_user: admin
+default_pass: admin
+
+# —— 文件（本机绝对路径） ——
+firmware_file: ""               # 固件 .bin（binwalk 解包用）
+firmware_extract_dir: ""        # binwalk 解包后的目录（firmwalker 扫描用）
+apk_file: ""                    # Android APK（MobSF 分析用）
+
+# —— 字典（hydra 等爆破工具用） ——
+users_file: /usr/share/wordlists/metasploit/unix_users.txt
+pass_file: /usr/share/wordlists/rockyou.txt
+
+# —— 报告元数据 ——
+tester: zicheng
+lab: ""
+etr_version: "1.0"
+date: "2026-06-19"

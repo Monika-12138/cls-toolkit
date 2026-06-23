@@ -11,7 +11,11 @@ from __future__ import annotations
 from typing import List
 
 from .base import ManualTool, Tool
+from .commix_tool import CommixTool
+from .dirsearch_tool import DirsearchTool
+from .firmwalker_tool import FirmwalkerTool
 from .nmap_tool import NmapTool
+from .sqlmap_tool import SqlmapTool
 from .testssl_tool import TestsslTool
 
 
@@ -27,6 +31,10 @@ ALL_TOOLS: List[Tool] = [
     # ---- L1 全自动（有专用 parser）----
     NmapTool(),
     TestsslTool(),
+    DirsearchTool(),
+    SqlmapTool(),
+    CommixTool(),
+    FirmwalkerTool(),
 
     # ---- L1 全自动（通用执行，待加 parser）----
     generic(
@@ -50,29 +58,9 @@ ALL_TOOLS: List[Tool] = [
         command_template="binwalk -Me {firmware_file}",
     ),
     generic(
-        id="firmwalker", test="FW-2", category="FW", level="L1", binary="firmwalker",
-        description="扫描固件文件系统中的密钥/密码/隐藏账户", requires=["firmware_extract_dir"],
-        command_template="firmwalker {firmware_extract_dir}",
-    ),
-    generic(
-        id="dirsearch", test="CP-1", category="CP", level="L1", binary="dirsearch",
-        description="配置门户隐藏路径/管理接口爆破", requires=["portal_url"],
-        command_template="dirsearch -u {portal_url} --format plain -o {evidence}.txt",
-    ),
-    generic(
         id="feroxbuster", test="CP-1", category="CP", level="L1", binary="feroxbuster",
         description="高性能目录/文件枚举", requires=["portal_url"],
         command_template="feroxbuster -u {portal_url} -o {evidence}.txt",
-    ),
-    generic(
-        id="sqlmap", test="CP-3", category="CP", level="L1", binary="sqlmap",
-        description="配置门户参数 SQL 注入检测", requires=["portal_url"],
-        command_template="sqlmap -u {portal_url} --batch --crawl=1 --risk=1 --level=2 --output-dir={evidence}",
-    ),
-    generic(
-        id="commix", test="CP-4", category="CP", level="L1", binary="commix",
-        description="命令注入检测", requires=["portal_url"],
-        command_template="commix --url={portal_url} --batch",
     ),
     generic(
         id="xsser", test="CP-6", category="CP", level="L1", binary="xsser",

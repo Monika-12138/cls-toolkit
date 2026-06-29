@@ -1,22 +1,28 @@
 """工具目录 —— 注册所有 CLS 测试工具模块。
 
-- nmap / testssl：有专用 parser（独立文件）
-- 其余 L1 工具：用 GenericTool（执行 + 存日志，findings 待后续加 parser）
-- L2/L3：ManualTool 占位
+- L1 全自动（12 个）：每个都有专用 parser（独立 *_tool.py），执行 + 解析 findings
+- L2/L3：ManualTool 占位（用 generic(cls=ManualTool, ...) 快速登记，不代跑）
 
-加新工具：写一个 Tool 子类或 generic(...)，append 到 ALL_TOOLS。
+加新工具：写一个 Tool 子类（最简只需 command_template + requires + parse），
+import 进来 append 到 ALL_TOOLS。纯人工/硬件步骤用 generic(cls=ManualTool, ...)。
 """
 from __future__ import annotations
 
 from typing import List
 
 from .base import ManualTool, Tool
+from .binwalk_tool import BinwalkTool
 from .commix_tool import CommixTool
 from .dirsearch_tool import DirsearchTool
+from .feroxbuster_tool import FeroxbusterTool
 from .firmwalker_tool import FirmwalkerTool
+from .hydra_tool import HydraTool
+from .netdiscover_tool import NetdiscoverTool
 from .nmap_tool import NmapTool
+from .routersploit_tool import RoutersploitTool
 from .sqlmap_tool import SqlmapTool
 from .testssl_tool import TestsslTool
+from .xsser_tool import XsserTool
 
 
 def generic(cls=Tool, **attrs) -> Tool:
@@ -28,45 +34,19 @@ def generic(cls=Tool, **attrs) -> Tool:
 
 
 ALL_TOOLS: List[Tool] = [
-    # ---- L1 全自动（有专用 parser）----
+    # ---- L1 全自动（均带专用 parser）----
     NmapTool(),
+    NetdiscoverTool(),
+    RoutersploitTool(),
+    HydraTool(),
+    BinwalkTool(),
+    FirmwalkerTool(),
     TestsslTool(),
     DirsearchTool(),
+    FeroxbusterTool(),
     SqlmapTool(),
     CommixTool(),
-    FirmwalkerTool(),
-
-    # ---- L1 全自动（通用执行，待加 parser）----
-    generic(
-        id="netdiscover", test="PS-1", category="PS", level="L1", binary="netdiscover",
-        description="发现局域网内存活主机", requires=["lan_subnet"],
-        command_template="netdiscover -P -r {lan_subnet}",
-    ),
-    generic(
-        id="routersploit", test="PS-2", category="PS", level="L1", binary="routersploit",
-        description="路由器/IoT 常见漏洞自动探测", requires=["ip"],
-        command_template="routersploit --execute 'use scanners/autopwn; set target {ip}; run'",
-    ),
-    generic(
-        id="hydra", test="AU-1", category="AU", level="L1", binary="hydra",
-        description="登录接口抗暴力破解验证", requires=["ip", "users_file", "pass_file"],
-        command_template="hydra -L {users_file} -P {pass_file} {ip} http-get /",
-    ),
-    generic(
-        id="binwalk", test="FW-1", category="FW", level="L1", binary="binwalk",
-        description="固件解包，提取文件系统", requires=["firmware_file"],
-        command_template="binwalk -Me {firmware_file}",
-    ),
-    generic(
-        id="feroxbuster", test="CP-1", category="CP", level="L1", binary="feroxbuster",
-        description="高性能目录/文件枚举", requires=["portal_url"],
-        command_template="feroxbuster -u {portal_url} -o {evidence}.txt",
-    ),
-    generic(
-        id="xsser", test="CP-6", category="CP", level="L1", binary="xsser",
-        description="跨站脚本 XSS 检测", requires=["portal_url"],
-        command_template="xsser --url {portal_url}",
-    ),
+    XsserTool(),
 
     # ---- L2 半自动（需人工抓包/上传产物）----
     generic(

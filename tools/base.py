@@ -87,6 +87,7 @@ class Tool:
         return {
             "tool": self.id,
             "test": self.test,
+            "category": self.category,
             "level": self.level,
             "command": " ".join(argv),
             "exit_code": exit_code,
@@ -109,6 +110,7 @@ class ManualTool(Tool):
         return {
             "tool": self.id,
             "test": self.test,
+            "category": self.category,
             "level": self.level,
             "command": self.command_template or "（人工步骤）",
             "exit_code": None,

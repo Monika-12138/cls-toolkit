@@ -5,6 +5,7 @@
   python3 cls.py check                检查本机装了哪些工具二进制
   python3 cls.py run --dut dut.yaml --tools nmap,testssl
   python3 cls.py run --dut dut.yaml --plan plan.yaml
+  python3 cls.py report                按类别汇总最近一次结果，导出 Markdown
 """
 from __future__ import annotations
 
@@ -21,6 +22,7 @@ for _stream in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):
         pass
 
+from core import report as report_mod
 from core.dut import load_dut
 from core.runner import run_pipeline
 from tools.base import LEVELS
@@ -92,6 +94,28 @@ def cmd_run(args) -> int:
     return 0
 
 
+def cmd_report(args) -> int:
+    if args.results:
+        path = Path(args.results)
+        if not path.exists():
+            print(f"找不到结果文件: {path}", file=sys.stderr)
+            return 1
+    else:
+        path = report_mod.latest_results()
+        if path is None:
+            print("results/ 下还没有结果。先 `python3 cls.py run ...` 跑一次。",
+                  file=sys.stderr)
+            return 1
+
+    report = report_mod.load(path)
+    summary = report_mod.build_summary(report)
+    print(report_mod.render_terminal(report, summary))
+
+    md_path = report_mod.write_summary_md(report, str(path))
+    print(f"\nMarkdown 汇总：{md_path}")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="cls", description="CLS 测试工具合集（Kali CLI）")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -104,6 +128,10 @@ def main() -> int:
     run_p.add_argument("--tools", help="逗号分隔的工具 id，如 nmap,testssl")
     run_p.add_argument("--plan", help="流水线 yaml（pipeline: [...]）")
     run_p.set_defaults(func=cmd_run)
+
+    rep_p = sub.add_parser("report", help="汇总结果（按类别 + 严重度），导出 Markdown")
+    rep_p.add_argument("--results", help="指定结果 json（默认取 results/ 最新一份）")
+    rep_p.set_defaults(func=cmd_report)
 
     args = parser.parse_args()
     return args.func(args)

@@ -38,12 +38,17 @@ python3 cls.py run --dut dut.yaml --tools nmap,testssl,dirsearch
 # 或用 plan 文件排流水线
 cp plan.example.yaml plan.yaml
 python3 cls.py run --dut dut.yaml --plan plan.yaml
+
+# 5. 汇总最近一次结果（按 CLS 类别 + 严重度），导出 Markdown
+python3 cls.py report
 ```
 
 执行后：
 
 - `evidence/` — 每个工具的原始输出（nmap XML、testssl JSON、各工具 .log）
 - `results/` — 一份 `results_<时间戳>.json`，含每个工具的命令、退出码、结构化 findings
+- `report` 再产出 `results/summary_<时间戳>.md`：按 PS/FW/CO/CP/… 类别分组、严重度统计、
+  「需人工跟进」清单 —— 这份 Markdown 就是后续 AI 写报告（Part 2）的输入
 
 ## 工具自动化分层
 
@@ -64,9 +69,20 @@ class DirsearchTool(Tool):
     command_template = "dirsearch -u {portal_url} --format plain -o {evidence}.txt"
 ```
 
+## 测试
+
+零依赖冒烟测试（在没装真实二进制的机器，如 Windows 上也能跑）——给每个 parser 喂样例输出，断言 findings：
+
+```bash
+python3 tests/test_parsers.py     # 12 个 parser + report 聚合
+```
+
 ## 路线图
 
-- [x] Part 1：工具合集 + 真实执行 + 结构化结果（当前）
-- [ ] 给更多 L1 工具写专用 parser（dirsearch / sqlmap / firmwalker…）
+- [x] Part 1：工具合集 + 真实执行 + 结构化结果
+- [x] 12 个 L1 工具全部带专用 parser（nmap / netdiscover / routersploit / hydra /
+      binwalk / firmwalker / testssl / dirsearch / feroxbuster / sqlmap / commix / xsser）
+- [x] `cls.py report`：按 CLS 类别 + 严重度汇总，导出 Markdown
+- [ ] **在 Kali 上端到端实测**（真二进制真跑，验证各 parser）
 - [ ] L2 证据解析（tshark 读 pcap、MobSF REST API）
-- [ ] Part 2：AI 读 findings + CLS 模板 → 生成报告草稿 → 导出 .docx
+- [ ] Part 2：AI 读 `summary_*.md` + CLS 模板 → 生成报告草稿 → 导出 .docx

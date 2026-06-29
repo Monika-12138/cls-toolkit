@@ -29,8 +29,8 @@ def run_pipeline(dut: dict, tools: List[Tool]) -> dict:
         if not tool.available():
             print(f"{label}  →  跳过：未安装 {tool.binary}")
             results.append({
-                "tool": tool.id, "test": tool.test, "level": tool.level,
-                "status": "skipped-no-binary", "findings": [],
+                "tool": tool.id, "test": tool.test, "category": tool.category,
+                "level": tool.level, "status": "skipped-no-binary", "findings": [],
                 "note": f"本机未安装 {tool.binary}",
             })
             continue
@@ -39,8 +39,8 @@ def run_pipeline(dut: dict, tools: List[Tool]) -> dict:
         if missing:
             print(f"{label}  →  跳过：DUT 缺字段 {missing}")
             results.append({
-                "tool": tool.id, "test": tool.test, "level": tool.level,
-                "status": "skipped-missing-fields", "findings": [],
+                "tool": tool.id, "test": tool.test, "category": tool.category,
+                "level": tool.level, "status": "skipped-missing-fields", "findings": [],
                 "note": f"DUT 缺字段: {', '.join(missing)}",
             })
             continue

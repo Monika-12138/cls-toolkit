@@ -1,17 +1,22 @@
-# Kali 实测手册 —— cls-toolkit L1 工具
+# Kali Test Runbook -- cls-toolkit L1 tools
 
-> 在 Kali 机器上跑这份就行。每个代码块都可整段复制粘贴进终端。
-> 目标：验证 12 个 L1（全自动）工具能不能在真二进制下跑起来 + 出结构化结果。
+> Run this on the Kali machine. Every code block can be copy-pasted whole into the terminal.
+> Goal: verify the 12 L1 (fully automated) tools actually run with real binaries and
+> produce structured results.
 
-⚠️ **只对你有授权的 DUT（实验室那台路由器）或你自己的设备跑攻击类工具。** 别对随便的网址跑 sqlmap/commix/xsser/hydra。
+WARNING: only run the offensive tools against a DUT you are authorized to test (the lab
+router) or your own device. Do not run sqlmap/commix/xsser/hydra against random hosts.
+
+> If you are logged in as **root** (prompt ends in `#`), you can drop every `sudo` below.
 
 ---
 
-## 0. 一次性安装（在 Kali 上做一遍）
+## 0. One-time install (do once on Kali)
 
-### 0.1 装依赖 + L1 工具二进制
+### 0.1 Dependencies + L1 tool binaries
 
-Kali 现在用 PEP 668，**不要 `pip install`**（会被拦），Python 依赖走 apt：
+Modern Kali uses PEP 668, so **do not `pip install`** (it is blocked). The only Python
+dependency goes through apt:
 
 ```bash
 sudo apt update
@@ -22,11 +27,14 @@ sudo apt install -y \
   dirb seclists
 ```
 
-- `python3-yaml` = 工具唯一的 Python 依赖（apt 装的，`sudo python3` 也能用）。
-- `dirb` 提供 feroxbuster 默认字典 `/usr/share/wordlists/dirb/common.txt`。
-- 大部分工具 Kali 可能已自带，这行只是补齐缺的。
+- `python3-yaml` = the tool's only Python dependency (apt-installed, so `sudo python3`
+  can use it too). It is often already installed.
+- `dirb` provides feroxbuster's default wordlist `/usr/share/wordlists/dirb/common.txt`.
+- Most tools may already ship with Kali; this line just fills in what's missing.
+- If you hit a `404 Not Found` during install, your package index is stale -- run
+  `sudo apt update` first, then re-run the install.
 
-### 0.2 装 firmwalker（不在 apt 里，单独装）
+### 0.2 Install firmwalker (not in apt, install separately)
 
 ```bash
 git clone https://github.com/craigz28/firmwalker.git ~/tools/firmwalker
@@ -34,64 +42,69 @@ chmod +x ~/tools/firmwalker/firmwalker.sh
 sudo ln -sf ~/tools/firmwalker/firmwalker.sh /usr/local/bin/firmwalker
 ```
 
-### 0.3 解压 rockyou 字典（hydra 要用）
+### 0.3 Unzip the rockyou wordlist (needed by hydra)
 
 ```bash
 sudo gunzip -k /usr/share/wordlists/rockyou.txt.gz 2>/dev/null || true
-ls -la /usr/share/wordlists/rockyou.txt   # 确认在了
+ls -la /usr/share/wordlists/rockyou.txt   # confirm it's there
 ```
 
-### 0.4 拉工具仓库
+### 0.4 Clone the toolkit
 
 ```bash
 git clone https://github.com/Monika-12138/cls-toolkit.git ~/cls-toolkit
 cd ~/cls-toolkit
 ```
 
-### 0.5 确认工具二进制都被识别
+### 0.5 Confirm the binaries are detected
 
 ```bash
 python3 cls.py check
 ```
 
-- 每个 L1 工具应显示 `✓ 已安装`。
-- 若 `testssl` 显示 `✗`：Kali 有时把命令装成 `testssl` 而不是 `testssl.sh`。修：
+- Each L1 tool should show `[+] installed`.
+- If `testssl` shows `[-] missing`: Kali sometimes installs the command as `testssl`
+  rather than `testssl.sh`. Fix:
   ```bash
   which testssl testssl.sh
-  # 如果只有 testssl，没有 testssl.sh，就建个软链：
+  # if only testssl exists, symlink it:
   sudo ln -sf "$(which testssl)" /usr/local/bin/testssl.sh
   ```
-- `routersploit` 显示 `✗` 正常 —— 见 §2 末尾说明，第一轮先跳过它。
+- `routersploit` showing `[-] missing` is fine -- see the note at the end of section 2;
+  skip it in the first round.
 
 ---
 
-## 1. 填设备信息（DUT）
+## 1. Fill in the device info (DUT)
 
-工具的核心逻辑：**填一次 `dut.yaml`，所有命令自动注入。** 每个工具只有在它「需要的字段」都填了才会跑，否则打印 `跳过：DUT 缺字段`。
+Core idea: **fill `dut.yaml` once, and every command auto-injects from it.** A tool only
+runs if all of its required fields are filled, otherwise it prints `skipped: DUT missing
+fields`.
 
-### 1.1 复制模板并编辑
+### 1.1 Copy the template and edit
 
 ```bash
 cd ~/cls-toolkit
 cp dut.example.yaml dut.yaml
-nano dut.yaml        # 或 vim / mousepad
+nano dut.yaml        # or vim / mousepad
 ```
 
-### 1.2 哪个字段喂哪个工具（关键对照表）
+### 1.2 Which field feeds which tool (key mapping)
 
-| 你填的字段 | 长什么样 | 喂给哪些 L1 工具 |
+| Field you fill | Looks like | Feeds these L1 tools |
 |---|---|---|
-| `ip` | `192.168.1.1`（DUT 的 IP） | nmap、routersploit、hydra |
-| `lan_subnet` | `192.168.1.0/24`（DUT 所在网段） | netdiscover |
-| `portal_url` | `https://192.168.1.1`（配置门户网址） | testssl、dirsearch、feroxbuster、sqlmap、commix、xsser |
-| `firmware_file` | `/home/kali/dut/fw.bin`（固件包绝对路径） | binwalk |
-| `firmware_extract_dir` | binwalk 解包后那个目录（见 §2 Stage D） | firmwalker |
+| `ip` | `192.168.1.1` (DUT IP) | nmap, routersploit, hydra |
+| `lan_subnet` | `192.168.1.0/24` (DUT subnet) | netdiscover |
+| `portal_url` | `https://192.168.1.1` (config portal URL) | testssl, dirsearch, feroxbuster, sqlmap, commix, xsser |
+| `firmware_file` | `/home/kali/dut/fw.bin` (absolute path) | binwalk |
+| `firmware_extract_dir` | the dir binwalk extracted to (see section 2, Stage D) | firmwalker |
 | `users_file` | `/usr/share/wordlists/metasploit/unix_users.txt` | hydra |
 | `pass_file` | `/usr/share/wordlists/rockyou.txt` | hydra |
 
-> 其余字段（`toe_name`/`model`/`vendor`/`tester`…）只是写进结果给报告用，不影响能不能跑。
+> Other fields (`toe_name`/`model`/`vendor`/`tester`...) are just written into the
+> results for the report; they don't affect whether a tool runs.
 
-### 1.3 一个最小可跑的例子（以参考机 ASKEY 路由器为例）
+### 1.3 A minimal working example (reference router: ASKEY)
 
 ```yaml
 toe_name: ASKEY RTM7230T
@@ -102,7 +115,8 @@ lan_subnet: 192.168.1.0/24
 portal_url: https://192.168.1.1
 default_user: admin
 default_pass: admin
-# 固件相关：有固件文件再填，没有就留空（binwalk/firmwalker 会自动跳过）
+# firmware: fill only if you have a firmware file, otherwise leave empty
+# (binwalk/firmwalker auto-skip when empty)
 firmware_file: ""
 firmware_extract_dir: ""
 users_file: /usr/share/wordlists/metasploit/unix_users.txt
@@ -110,26 +124,29 @@ pass_file: /usr/share/wordlists/rockyou.txt
 tester: zicheng
 ```
 
-把 `ip` / `lan_subnet` / `portal_url` 改成你实验网里 DUT 的真实值即可。
+Change `ip` / `lan_subnet` / `portal_url` to your lab DUT's real values.
 
 ---
 
-## 2. 分阶段测试
+## 2. Staged testing
 
-`dut.yaml`（含真实 IP/凭据）不会进 git，放心填。结果落在 `evidence/`（原始输出）和 `results/`（结构化 JSON）。
+`dut.yaml` (with real IP/creds) is gitignored, so fill it freely. Results land in
+`evidence/` (raw output) and `results/` (structured JSON).
 
-> **关于 sudo**：`nmap -O`（OS 识别）和 `netdiscover` 需要 root。含这两个的流水线用 `sudo python3 cls.py run ...`。因为依赖是 apt 装的，`sudo python3` 一样能用。
+> **About sudo**: `nmap -O` (OS detection) and `netdiscover` need root. Run pipelines
+> that include those with `sudo python3 cls.py run ...`. Since the dependency is
+> apt-installed, `sudo python3` still finds it. (If you are root, no sudo needed.)
 
-### Stage A — 不需要 DUT，先确认工具本身没问题
+### Stage A -- no DUT needed, confirm the tool itself is fine
 
 ```bash
-python3 cls.py list      # 应列出 20 个模块，12 个 L1
-python3 cls.py check     # 二进制识别
+python3 cls.py list      # should list 20 modules, 12 of them L1
+python3 cls.py check     # binary detection
 ```
 
-### Stage B — 安全侦察类（需要 DUT 在线 + 填好 ip / lan_subnet / portal_url）
+### Stage B -- safe recon (needs DUT online + ip / lan_subnet / portal_url filled)
 
-逐个单独验证（`--tools` 后跟一个 id，方便看单个工具行不行）：
+Verify one at a time (`--tools` with a single id, so you can see each tool individually):
 
 ```bash
 sudo python3 cls.py run --dut dut.yaml --tools nmap
@@ -139,88 +156,96 @@ python3 cls.py run --dut dut.yaml --tools dirsearch
 python3 cls.py run --dut dut.yaml --tools feroxbuster
 ```
 
-或一次跑完这组：
+Or run the whole group at once:
 
 ```bash
 sudo python3 cls.py run --dut dut.yaml --tools nmap,netdiscover,testssl,dirsearch,feroxbuster
 ```
 
-### Stage C — 主动/攻击类（⚠️ 仅对授权 DUT）
+### Stage C -- active/offensive (WARNING: authorized DUT only)
 
 ```bash
 python3 cls.py run --dut dut.yaml --tools sqlmap
 python3 cls.py run --dut dut.yaml --tools commix
 python3 cls.py run --dut dut.yaml --tools xsser
-# hydra：会拿 rockyou 爆破，很慢；测「能不能跑起来」可先 Ctrl-C
+# hydra: brute-forces with rockyou, very slow; to just test "does it start", Ctrl-C early
 python3 cls.py run --dut dut.yaml --tools hydra
 ```
 
-### Stage D — 固件类（需要一个固件 .bin 文件）
+### Stage D -- firmware (needs a firmware .bin file)
 
-binwalk 先解包，再把它生成的 `*.extracted` 目录填进 `firmware_extract_dir`，然后跑 firmwalker：
+binwalk extracts first; then put the `*.extracted` directory it creates into
+`firmware_extract_dir`, and run firmwalker:
 
 ```bash
-# 1) 填好 dut.yaml 里的 firmware_file，再跑 binwalk
+# 1) fill firmware_file in dut.yaml, then run binwalk
 python3 cls.py run --dut dut.yaml --tools binwalk
 
-# 2) 看 binwalk 解包出的目录名（通常在固件文件同级，形如 _fw.bin.extracted）
+# 2) find the directory binwalk extracted to (usually next to the firmware file,
+#    named like _fw.bin.extracted)
 ls -d ~/dut/*.extracted
 
-# 3) 把那个目录路径填进 dut.yaml 的 firmware_extract_dir，再跑 firmwalker
+# 3) put that path into dut.yaml's firmware_extract_dir, then run firmwalker
 python3 cls.py run --dut dut.yaml --tools firmwalker
 ```
 
-### Stage E — 一把梭（填好哪些字段就跑哪些工具，缺字段的自动跳过）
+### Stage E -- all at once (runs whatever fields are filled; the rest auto-skip)
 
 ```bash
 sudo python3 cls.py run --dut dut.yaml --plan plan.example.yaml
-# 或自己列：
+# or list your own:
 sudo python3 cls.py run --dut dut.yaml --tools nmap,netdiscover,testssl,dirsearch,feroxbuster,sqlmap,commix,xsser
 ```
 
-### ⚠️ routersploit —— 第一轮先跳过
+### WARNING: routersploit -- skip it in round 1
 
-它的命令模板（`routersploit --execute '...'`）还没在真机验证过，routersploit 本体是交互式的，这条可能跑不通或卡住。**第一轮测试别带它**；想单独试再 `--tools routersploit`，跑不通正常，回来告诉我，我改命令模板。
+Its command template (`routersploit --execute '...'`) is not yet verified on a real
+box, and routersploit itself is interactive, so this one may fail or hang. **Leave it
+out of the first test run.** If you want to try it separately, `--tools routersploit`;
+a failure is expected -- report back and I'll fix the command template.
 
 ---
 
-## 3. 出汇总报告
+## 3. Produce the summary report
 
-任意 `run` 之后：
+After any `run`:
 
 ```bash
 python3 cls.py report
 ```
 
-- 终端打印：按 CLS 类别（PS/FW/CO/CP/MA/AU…）+ 严重度的统计。
-- 同时生成 `results/summary_<时间戳>.md` —— 这份就是以后喂 AI 写报告的输入。
+- Terminal prints: stats by CLS category (PS/FW/CO/CP/MA/AU...) + severity.
+- Also writes `results/summary_<timestamp>.md` -- this is the input for AI report
+  writing later.
 
 ```bash
-cat results/summary_*.md | less    # 看最新那份
+cat results/summary_*.md | less    # view the newest one
 ```
 
 ---
 
-## 4. 把结果带回 Windows（可选）
+## 4. Bring results back to Windows (optional)
 
-`results/` 和 `evidence/` 在 Kali 上。要带回来看：
+`results/` and `evidence/` live on Kali. To take them back:
 
 ```bash
-# 在 Kali 上打包
+# pack on Kali
 cd ~/cls-toolkit && tar czf /tmp/cls-results.tgz results evidence
 ```
 
-然后用 U 盘 / 共享文件夹 / `scp` 拷到 Windows。（这些目录不进 git，所以不会自动同步。）
+Then copy to Windows via USB / shared folder / `scp`. (These dirs are gitignored, so
+they don't sync automatically.)
 
 ---
 
-## 5. 测完反馈给我
+## 5. Report back to me
 
-逐个工具记一下：`✓ 跑通且 findings 合理` / `跑通但 findings 不对` / `报错（贴报错）`。重点关注：
+For each tool, note: `OK ran and findings look right` / `ran but findings wrong` /
+`error (paste it)`. Watch especially:
 
-- `feroxbuster` 字典路径对不对（没装 dirb 会报字典找不到）。
-- `testssl` 二进制名（§0.5 的软链有没有需要）。
-- `hydra` 的 http 模块对不对路（路由器登录可能是 form 而非 http-get）。
-- `routersploit` 命令模板（预期要改）。
+- `feroxbuster` wordlist path (missing dirb -> "wordlist not found" error).
+- `testssl` binary name (whether the section 0.5 symlink was needed).
+- `hydra` http module (a router login may be a form, not http-get).
+- `routersploit` command template (expected to need a fix).
 
-我据此调命令模板 / parser。
+I'll adjust the command templates / parsers from there.

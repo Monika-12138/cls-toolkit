@@ -1,11 +1,13 @@
-"""sqlmap —— 配置门户参数 SQL 注入检测，从 stdout 提取注入点 / DBMS findings。
+"""sqlmap -- SQL injection check on config-portal parameters; extract injection
+points / DBMS findings from stdout.
 
-sqlmap 没有稳定的机读 JSON，注入结论主要在 stdout：
-  - "Parameter: id (GET)"            注入参数
-  - "Type: boolean-based blind"      注入类型
+sqlmap has no stable machine-readable JSON; the injection verdict is mainly in
+stdout:
+  - "Parameter: id (GET)"            injected parameter
+  - "Type: boolean-based blind"      injection type
   - "sqlmap identified the following injection point"
-  - "back-end DBMS: MySQL"           后端数据库
-所以解析 raw stdout，逐行抓这些 marker。
+  - "back-end DBMS: MySQL"           back-end database
+So we parse raw stdout, grabbing these markers line by line.
 """
 from __future__ import annotations
 
@@ -26,7 +28,7 @@ class SqlmapTool(Tool):
     category = "CP"
     level = "L1"
     binary = "sqlmap"
-    description = "配置门户参数 SQL 注入检测"
+    description = "SQL injection check on config-portal parameters"
     requires = ["portal_url"]
     command_template = (
         "sqlmap -u {portal_url} --batch --crawl=1 --risk=1 --level=2 "
@@ -40,11 +42,11 @@ class SqlmapTool(Tool):
 
         def flush():
             if current_param:
-                detail = "; ".join(types) if types else "存在可注入参数"
+                detail = "; ".join(types) if types else "injectable parameter present"
                 findings.append(
                     {
                         "severity": "high",
-                        "title": f"SQL 注入: 参数 {current_param}",
+                        "title": f"SQL injection: parameter {current_param}",
                         "detail": detail,
                     }
                 )
@@ -66,20 +68,20 @@ class SqlmapTool(Tool):
             findings.append(
                 {
                     "severity": "info",
-                    "title": "后端数据库识别",
+                    "title": "Back-end DBMS identified",
                     "detail": m.group(1),
                 }
             )
 
-        # 没抓到结构化参数，但 stdout 明确说有注入 → 兜底报一条
+        # no structured parameter parsed, but stdout clearly states injection -> one fallback
         if not findings and re.search(
             r"is vulnerable|injection point|appears to be injectable", raw, re.IGNORECASE
         ):
             findings.append(
                 {
                     "severity": "high",
-                    "title": "SQL 注入: 检测到可注入点",
-                    "detail": "详见 evidence 日志（未能解析出具体参数）",
+                    "title": "SQL injection: injectable point detected",
+                    "detail": "see evidence log (could not parse the specific parameter)",
                 }
             )
         return findings

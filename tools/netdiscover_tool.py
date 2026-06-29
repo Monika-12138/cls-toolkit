@@ -1,9 +1,10 @@
-"""netdiscover —— 局域网存活主机发现，解析输出表格为主机清单 findings。
+"""netdiscover -- LAN live-host discovery; parse the host table into findings.
 
-netdiscover -P 的可解析输出每行一台主机：
+netdiscover -P prints a parsable table, one host per line:
      192.168.1.1     aa:bb:cc:dd:ee:ff      3      180  Realtek Semiconductor Corp.
-列：IP / MAC / Count / Len / MAC Vendor（厂商名可能含空格）。
-交互模式的 "Unique Hosts" 表格数据行同样以 IP 开头，用同一正则即可。
+Columns: IP / MAC / Count / Len / MAC Vendor (vendor may contain spaces).
+Interactive-mode "Unique Hosts" data rows also start with an IP, so the same
+regex handles both.
 """
 from __future__ import annotations
 
@@ -17,7 +18,7 @@ _HOST_RE = re.compile(
     r"^\s*(\d{1,3}(?:\.\d{1,3}){3})\s+"      # IP
     r"([0-9a-fA-F:]{17})\s+"                  # MAC
     r"\d+\s+\d+\s+"                           # Count / Len
-    r"(.*\S)?\s*$"                            # Vendor（可空）
+    r"(.*\S)?\s*$"                            # Vendor (may be empty)
 )
 
 
@@ -27,7 +28,7 @@ class NetdiscoverTool(Tool):
     category = "PS"
     level = "L1"
     binary = "netdiscover"
-    description = "发现局域网内存活主机"
+    description = "Discover live hosts on the LAN"
     requires = ["lan_subnet"]
     command_template = "netdiscover -P -r {lan_subnet}"
 
@@ -42,11 +43,11 @@ class NetdiscoverTool(Tool):
             if ip in seen:
                 continue
             seen.add(ip)
-            detail = f"MAC {mac}" + (f" · {vendor}" if vendor else "")
+            detail = f"MAC {mac}" + (f" / {vendor}" if vendor else "")
             findings.append(
                 {
                     "severity": "info",
-                    "title": f"存活主机 {ip}",
+                    "title": f"Live host {ip}",
                     "detail": detail,
                 }
             )

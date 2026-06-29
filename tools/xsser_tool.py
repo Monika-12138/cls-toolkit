@@ -1,12 +1,15 @@
-"""XSSer —— 跨站脚本检测，从 stdout 的最终统计判断是否存在 XSS 注入点。
+"""XSSer -- cross-site scripting detection; decide from the stdout final stats
+whether an XSS injection point exists.
 
-XSSer 没有稳定机读 JSON，结论在 stdout 末尾的统计块：
+XSSer has no stable machine-readable JSON; the verdict is in the stats block at
+the end of stdout:
   [*] Final Results:
   - Injections: 5
   - Failed: 4
   - Successful: 1
   - Accuracy: 20 %
-`Successful: N` 且 N>0 → 存在可注入点（high）。另抓 `[I]` 行里列出的具体 URL。
+`Successful: N` with N>0 -> injectable point exists (high). Also grab any specific
+URLs listed in `[I]` lines.
 """
 from __future__ import annotations
 
@@ -17,7 +20,7 @@ from typing import List
 from .base import Tool
 
 _SUCCESS_RE = re.compile(r"Successful:\s*(\d+)", re.IGNORECASE)
-# XSSer 报告里列出的可注入 URL / payload 行
+# injectable URL / payload lines listed in XSSer's report
 _VULN_URL_RE = re.compile(r"\[I\]\s*(?:Vulnerable|Target|URL)[^:]*:\s*(\S+)", re.IGNORECASE)
 
 
@@ -27,7 +30,7 @@ class XsserTool(Tool):
     category = "CP"
     level = "L1"
     binary = "xsser"
-    description = "跨站脚本 XSS 检测"
+    description = "Cross-site scripting (XSS) detection"
     requires = ["portal_url"]
     command_template = "xsser --url {portal_url}"
 
@@ -41,26 +44,26 @@ class XsserTool(Tool):
         if successful > 0:
             urls = [m.group(1) for m in _VULN_URL_RE.finditer(raw)]
             detail = (
-                "可注入 URL: " + ", ".join(dict.fromkeys(urls))
+                "injectable URLs: " + ", ".join(dict.fromkeys(urls))
                 if urls
-                else f"XSSer 报告 {successful} 处成功注入"
+                else f"XSSer reported {successful} successful injection(s)"
             )
             findings.append(
                 {
                     "severity": "high",
-                    "title": f"XSS 注入点 ({successful} 处)",
+                    "title": f"XSS injection point ({successful} found)",
                     "detail": detail,
                 }
             )
             return findings
 
-        # 兜底：统计块没解析到，但 stdout 明确提示 XSS
+        # fallback: stats block not parsed, but stdout clearly flags XSS
         if re.search(r"XSS\s*FOUND|is vulnerable|vulnerable to XSS", raw, re.IGNORECASE):
             findings.append(
                 {
                     "severity": "high",
-                    "title": "XSS 注入: 检测到可注入点",
-                    "detail": "详见 evidence 日志（未能解析出成功计数）",
+                    "title": "XSS injection: injectable point detected",
+                    "detail": "see evidence log (could not parse the success count)",
                 }
             )
         return findings

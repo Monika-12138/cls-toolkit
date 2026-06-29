@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""CLS Toolkit —— 命令行入口。
+"""CLS Toolkit -- command-line entry point.
 
-  python3 cls.py list                 列出所有工具模块
-  python3 cls.py check                检查本机装了哪些工具二进制
+  python3 cls.py list                 list all tool modules
+  python3 cls.py check                check which tool binaries are installed
   python3 cls.py run --dut dut.yaml --tools nmap,testssl
   python3 cls.py run --dut dut.yaml --plan plan.yaml
-  python3 cls.py report                按类别汇总最近一次结果，导出 Markdown
+  python3 cls.py report               summarize the latest run, export Markdown
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from pathlib import Path
 
 import yaml
 
-# 确保中文 / ✓✗ 在任何终端（含 Windows GBK 控制台）都能输出，不崩
+# make sure output works on any terminal (including Windows GBK consoles)
 for _stream in (sys.stdout, sys.stderr):
     try:
         _stream.reconfigure(encoding="utf-8")
@@ -30,29 +30,29 @@ from tools.catalog import ALL_TOOLS, select
 
 
 def cmd_list(_args) -> int:
-    print(f"{'ID':<16}{'TEST':<14}{'CAT':<6}{'LV':<5}说明")
+    print(f"{'ID':<16}{'TEST':<14}{'CAT':<6}{'LV':<5}Description")
     print("-" * 78)
     for t in sorted(ALL_TOOLS, key=lambda x: (x.level, x.category, x.id)):
         print(f"{t.id:<16}{t.test:<14}{t.category:<6}{t.level:<5}{t.description}")
-    print(f"\n共 {len(ALL_TOOLS)} 个模块。等级：" +
+    print(f"\nTotal {len(ALL_TOOLS)} modules. Levels: " +
           " / ".join(f"{k} {v}" for k, v in LEVELS.items()))
     return 0
 
 
 def cmd_check(_args) -> int:
-    print(f"{'ID':<16}{'BINARY':<16}状态")
+    print(f"{'ID':<16}{'BINARY':<16}Status")
     print("-" * 48)
     missing = []
     for t in sorted(ALL_TOOLS, key=lambda x: x.id):
         if not t.auto:
-            print(f"{t.id:<16}{'(人工)':<16}—")
+            print(f"{t.id:<16}{'(manual)':<16}-")
             continue
         ok = t.available()
-        print(f"{t.id:<16}{t.binary:<16}{'✓ 已安装' if ok else '✗ 未安装'}")
+        print(f"{t.id:<16}{t.binary:<16}{'[+] installed' if ok else '[-] missing'}")
         if not ok:
             missing.append(t.binary)
     if missing:
-        print(f"\n未安装（在 Kali 上 apt/pip 装）：{', '.join(sorted(set(missing)))}")
+        print(f"\nNot installed (apt/pip on Kali): {', '.join(sorted(set(missing)))}")
     return 0
 
 
@@ -74,23 +74,24 @@ def cmd_run(args) -> int:
 
     tool_ids = _resolve_tool_ids(args)
     if not tool_ids:
-        print("没有指定工具。用 --tools nmap,testssl 或 --plan plan.yaml", file=sys.stderr)
+        print("No tools specified. Use --tools nmap,testssl or --plan plan.yaml", file=sys.stderr)
         return 1
 
     tools, unknown = select(tool_ids)
     if unknown:
-        print(f"⚠ 未知工具 id（已忽略）：{', '.join(unknown)}\n  `python3 cls.py list` 看可用 id", file=sys.stderr)
+        print(f"Warning: unknown tool id (ignored): {', '.join(unknown)}\n"
+              f"  `python3 cls.py list` to see valid ids", file=sys.stderr)
     if not tools:
         return 1
 
     print(f"DUT: {dut.get('toe_name', '?')} @ {dut.get('ip', '?')}")
-    print(f"流水线（{len(tools)}）：{' → '.join(t.id for t in tools)}\n")
+    print(f"Pipeline ({len(tools)}): {' -> '.join(t.id for t in tools)}\n")
 
     report = run_pipeline(dut, tools)
 
     total = sum(len(r.get("findings", [])) for r in report["results"])
-    print(f"\n完成。结构化结果：{report['_path']}")
-    print(f"原始证据目录：evidence/    findings 总数：{total}")
+    print(f"\nDone. Structured results: {report['_path']}")
+    print(f"Raw evidence dir: evidence/    total findings: {total}")
     return 0
 
 
@@ -98,12 +99,12 @@ def cmd_report(args) -> int:
     if args.results:
         path = Path(args.results)
         if not path.exists():
-            print(f"找不到结果文件: {path}", file=sys.stderr)
+            print(f"Result file not found: {path}", file=sys.stderr)
             return 1
     else:
         path = report_mod.latest_results()
         if path is None:
-            print("results/ 下还没有结果。先 `python3 cls.py run ...` 跑一次。",
+            print("No results in results/ yet. Run `python3 cls.py run ...` first.",
                   file=sys.stderr)
             return 1
 
@@ -112,25 +113,25 @@ def cmd_report(args) -> int:
     print(report_mod.render_terminal(report, summary))
 
     md_path = report_mod.write_summary_md(report, str(path))
-    print(f"\nMarkdown 汇总：{md_path}")
+    print(f"\nMarkdown summary: {md_path}")
     return 0
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(prog="cls", description="CLS 测试工具合集（Kali CLI）")
+    parser = argparse.ArgumentParser(prog="cls", description="CLS test toolkit (Kali CLI)")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("list", help="列出所有工具模块").set_defaults(func=cmd_list)
-    sub.add_parser("check", help="检查本机工具二进制").set_defaults(func=cmd_check)
+    sub.add_parser("list", help="List all tool modules").set_defaults(func=cmd_list)
+    sub.add_parser("check", help="Check which tool binaries are installed").set_defaults(func=cmd_check)
 
-    run_p = sub.add_parser("run", help="按顺序执行工具流水线")
-    run_p.add_argument("--dut", required=True, help="DUT 配置文件（yaml）")
-    run_p.add_argument("--tools", help="逗号分隔的工具 id，如 nmap,testssl")
-    run_p.add_argument("--plan", help="流水线 yaml（pipeline: [...]）")
+    run_p = sub.add_parser("run", help="Run a tool pipeline in order")
+    run_p.add_argument("--dut", required=True, help="DUT config file (yaml)")
+    run_p.add_argument("--tools", help="comma-separated tool ids, e.g. nmap,testssl")
+    run_p.add_argument("--plan", help="pipeline yaml (pipeline: [...])")
     run_p.set_defaults(func=cmd_run)
 
-    rep_p = sub.add_parser("report", help="汇总结果（按类别 + 严重度），导出 Markdown")
-    rep_p.add_argument("--results", help="指定结果 json（默认取 results/ 最新一份）")
+    rep_p = sub.add_parser("report", help="Summarize results (by category + severity), export Markdown")
+    rep_p.add_argument("--results", help="specific results json (default: newest in results/)")
     rep_p.set_defaults(func=cmd_report)
 
     args = parser.parse_args()

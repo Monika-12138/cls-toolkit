@@ -1,10 +1,13 @@
-"""工具目录 —— 注册所有 CLS 测试工具模块。
+"""Tool catalog -- register every CLS test tool module.
 
-- L1 全自动（12 个）：每个都有专用 parser（独立 *_tool.py），执行 + 解析 findings
-- L2/L3：ManualTool 占位（用 generic(cls=ManualTool, ...) 快速登记，不代跑）
+- L1 fully automated (12): each has a dedicated parser (its own *_tool.py),
+  execute + parse findings
+- L2/L3: ManualTool placeholders (registered quickly via
+  generic(cls=ManualTool, ...), not run for the user)
 
-加新工具：写一个 Tool 子类（最简只需 command_template + requires + parse），
-import 进来 append 到 ALL_TOOLS。纯人工/硬件步骤用 generic(cls=ManualTool, ...)。
+To add a tool: write a Tool subclass (minimally command_template + requires +
+parse), import it and append to ALL_TOOLS. Pure manual/hardware steps use
+generic(cls=ManualTool, ...).
 """
 from __future__ import annotations
 
@@ -26,7 +29,7 @@ from .xsser_tool import XsserTool
 
 
 def generic(cls=Tool, **attrs) -> Tool:
-    """快速造一个工具实例：generic(id="dirsearch", test="CP-1", ...)。"""
+    """Quickly build a tool instance: generic(id="dirsearch", test="CP-1", ...)."""
     tool = cls()
     for key, value in attrs.items():
         setattr(tool, key, value)
@@ -34,7 +37,7 @@ def generic(cls=Tool, **attrs) -> Tool:
 
 
 ALL_TOOLS: List[Tool] = [
-    # ---- L1 全自动（均带专用 parser）----
+    # ---- L1 fully automated (all parser-backed) ----
     NmapTool(),
     NetdiscoverTool(),
     RoutersploitTool(),
@@ -48,40 +51,40 @@ ALL_TOOLS: List[Tool] = [
     CommixTool(),
     XsserTool(),
 
-    # ---- L2 半自动（需人工抓包/上传产物）----
+    # ---- L2 semi-auto (needs manual capture / uploaded artifact) ----
     generic(
         cls=ManualTool, id="tshark", test="CO-2/4/5/6", category="CO", level="L2",
-        binary="tshark", description="人工抓包后用 tshark 解析 pcap（需先采集 capture.pcap）",
+        binary="tshark", description="Parse pcap with tshark after manual capture (capture.pcap first)",
     ),
     generic(
         cls=ManualTool, id="mobsf", test="MA-2/3/4/5", category="MA", level="L2",
-        description="MobSF 静态分析 APK（需起 MobSF server / REST API）",
+        description="MobSF static analysis of APK (needs MobSF server / REST API)",
     ),
     generic(
         cls=ManualTool, id="burpsuite", test="CP-5", category="CP", level="L2",
-        description="Burp 抓改包验证会话劫持（人工代理流程 + 截图）",
+        description="Burp intercept/replay to verify session hijacking (manual proxy + screenshots)",
     ),
     generic(
         cls=ManualTool, id="apk-extractor", test="MA-3/4/5", category="MA", level="L2",
-        description="从 Android 实机导出 APK，再交给 MobSF",
+        description="Export APK from a physical Android device, then feed to MobSF",
     ),
 
-    # ---- L3 人工/硬件（只列 checklist，不代跑）----
+    # ---- L3 manual/hardware (checklist only, not run for the user) ----
     generic(
         cls=ManualTool, id="firefox-manual", test="AU/CP/CO", category="AU", level="L3",
-        description="Firefox 手动验证（默认密码、锁定策略、强密码策略等）",
+        description="Firefox manual checks (default password, lockout policy, strong-password policy, etc.)",
     ),
     generic(
         cls=ManualTool, id="ghidra", test="FWU-5", category="FWU", level="L3",
-        description="Ghidra/Binary Ninja 逆向固件更新逻辑（加密/签名验证）",
+        description="Ghidra/Binary Ninja reverse-engineering of firmware update logic (encryption/signature)",
     ),
     generic(
         cls=ManualTool, id="airgeddon", test="AWR-1", category="AWR", level="L3",
-        description="WPS PIN 暴力破解（需 Alfa AWUS036NH 监控网卡）",
+        description="WPS PIN brute-force (needs Alfa AWUS036NH monitor-mode NIC)",
     ),
     generic(
         cls=ManualTool, id="uart", test="AWR-5", category="HW", level="L3",
-        description="UART/Attify Badge 硬件调试口检查（boot log / shell 暴露）",
+        description="UART/Attify Badge hardware debug port check (boot log / shell exposure)",
     ),
 ]
 
@@ -94,7 +97,7 @@ def by_id(tool_id: str) -> Tool | None:
 
 
 def select(ids: List[str]) -> tuple[List[Tool], List[str]]:
-    """按给定顺序取工具；返回 (找到的工具, 未知 id 列表)。"""
+    """Pick tools in the given order; return (found tools, unknown ids)."""
     found, unknown = [], []
     for tool_id in ids:
         tool = by_id(tool_id)

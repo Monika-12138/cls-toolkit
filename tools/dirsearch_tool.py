@@ -1,4 +1,6 @@
-"""dirsearch —— 配置门户隐藏路径/管理接口爆破，解析 JSON 报告为发现路径 findings。"""
+"""dirsearch -- brute-force hidden paths/admin interfaces on the config portal;
+parse the JSON report into found-path findings.
+"""
 from __future__ import annotations
 
 import json
@@ -7,7 +9,8 @@ from typing import List
 
 from .base import Tool
 
-# 命中这些关键词的路径更值得关注（管理面 / 备份 / 源码泄露 / 凭据）
+# paths matching these keywords deserve more attention (admin / backup / source
+# leak / credentials)
 _SENSITIVE = (
     "admin", "login", "config", "backup", "bak", "sql", "db",
     "passwd", "password", "secret", "private", "key", "token",
@@ -22,7 +25,7 @@ class DirsearchTool(Tool):
     category = "CP"
     level = "L1"
     binary = "dirsearch"
-    description = "配置门户隐藏路径/管理接口爆破"
+    description = "Brute-force hidden paths/admin interfaces on the config portal"
     requires = ["portal_url"]
     command_template = "dirsearch -u {portal_url} --format json -o {evidence}.json"
 
@@ -53,7 +56,7 @@ class DirsearchTool(Tool):
             findings.append(
                 {
                     "severity": "low" if sensitive else "info",
-                    "title": f"发现路径 {url}",
+                    "title": f"Found path {url}",
                     "detail": detail,
                 }
             )
@@ -61,9 +64,9 @@ class DirsearchTool(Tool):
 
 
 def _iter_results(data) -> List[dict]:
-    """兼容多种 dirsearch JSON 形态：
+    """Handle several dirsearch JSON shapes:
       - {"results": [ {...}, ... ]}
-      - {"<target-url>": [ {...}, ... ]}  (旧版按 target 分组)
+      - {"<target-url>": [ {...}, ... ]}  (older builds group by target)
       - [ {...}, ... ]
     """
     if isinstance(data, dict):

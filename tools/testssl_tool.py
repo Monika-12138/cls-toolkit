@@ -1,4 +1,4 @@
-"""testssl.sh —— TLS/SSL 配置检测，解析 JSON 输出中有风险的条目。"""
+"""testssl.sh -- TLS/SSL config check; parse risky entries from JSON output."""
 from __future__ import annotations
 
 import json
@@ -16,7 +16,7 @@ class TestsslTool(Tool):
     category = "CO"
     level = "L1"
     binary = "testssl.sh"
-    description = "检测管理门户/云端接口的 TLS 配置与协议弱点"
+    description = "Check TLS config and protocol weaknesses of the portal/cloud endpoint"
     requires = ["portal_url"]
     command_template = "testssl.sh --quiet --jsonfile {evidence}.json {portal_url}"
 

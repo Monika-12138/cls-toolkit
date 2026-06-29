@@ -1,6 +1,7 @@
-"""firmwalker —— 扫描固件文件系统中的密钥/密码/隐藏账户，解析输出文本为命中 findings。
+"""firmwalker -- scan an extracted firmware filesystem for keys/passwords/hidden
+accounts; parse the output text into hit findings.
 
-firmwalker 把结果写进输出文件，结构形如：
+firmwalker writes results in a structure like:
     ***Search for password files***
     #####################################passwd
     /etc/passwd
@@ -9,7 +10,8 @@ firmwalker 把结果写进输出文件，结构形如：
     ***Search for SSL related files***
     #####################################private
     /etc/ssl/private/server.key
-`#####...keyword` 行是当前类别，其后以 `/` 开头的行是命中文件。
+A `#####...keyword` line is the current category; lines after it that start with
+`/` are matched files.
 """
 from __future__ import annotations
 
@@ -18,7 +20,7 @@ from typing import List
 
 from .base import Tool
 
-# 命中这些类别 = 凭据/密钥泄露，高危
+# hitting these categories = credential/key leak, high severity
 _HIGH = (
     "shadow", "passwd", "password", "private", "key", "pem", "psk",
     "ssh", "id_rsa", "secret", "credential", "htpasswd",
@@ -31,7 +33,7 @@ class FirmwalkerTool(Tool):
     category = "FW"
     level = "L1"
     binary = "firmwalker"
-    description = "扫描固件文件系统中的密钥/密码/隐藏账户"
+    description = "Scan firmware filesystem for keys/passwords/hidden accounts"
     requires = ["firmware_extract_dir"]
     command_template = "firmwalker {firmware_extract_dir} {evidence}.txt"
 
@@ -55,7 +57,7 @@ class FirmwalkerTool(Tool):
                 category = stripped.lstrip("#").strip()
                 continue
             if stripped.startswith("***"):
-                category = ""  # 进入新 section，等下一个 ##### 给出具体类别
+                category = ""  # new section; wait for the next ##### category
                 continue
             if stripped.startswith("/"):
                 low = (category + " " + stripped).lower()
@@ -63,7 +65,7 @@ class FirmwalkerTool(Tool):
                 findings.append(
                     {
                         "severity": "high" if high else "low",
-                        "title": f"固件命中{f' [{category}]' if category else ''}",
+                        "title": f"Firmware hit{f' [{category}]' if category else ''}",
                         "detail": stripped,
                     }
                 )

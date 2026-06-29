@@ -1,9 +1,9 @@
-# 测试流水线 —— 按顺序执行的工具 id 列表。
-# 等价于网站里"把工具拖进工作区并排好顺序"。
-# 工具 id 见：python3 cls.py list
+# Test pipeline -- ordered list of tool ids to run.
+# Equivalent to "drag tools into the workspace and order them" on the old website idea.
+# Tool ids: python3 cls.py list
 
 pipeline:
-  - nmap        # PS-1  端口/服务扫描
-  - testssl     # CO-3  TLS 配置检测
-  - dirsearch   # CP-1  隐藏路径发现
-  - sqlmap      # CP-3  SQL 注入
+  - nmap        # PS-1  port/service scan
+  - testssl     # CO-3  TLS config check
+  - dirsearch   # CP-1  hidden path discovery
+  - sqlmap      # CP-3  SQL injection

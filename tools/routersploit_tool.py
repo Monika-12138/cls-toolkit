@@ -1,9 +1,10 @@
-"""RouterSploit —— 路由器/IoT 漏洞自动探测，从 stdout 抓 "is vulnerable" 结论。
+"""RouterSploit -- router/IoT auto vuln probing; grab "is vulnerable" lines from stdout.
 
-RouterSploit (autopwn / scanners) 对每个模块打印：
+RouterSploit (autopwn / scanners) prints per module:
   [+] 192.168.1.1:80 http exploits/routers/.../rce is vulnerable
   [-] ...                                              is not vulnerable
-抓含 "is vulnerable" 但不含 "not vulnerable" 的行，每条 = 命中一个已知漏洞模块（high）。
+Take lines that contain "is vulnerable" but not "not vulnerable"; each one is a
+matched known-vuln module (high).
 """
 from __future__ import annotations
 
@@ -22,7 +23,7 @@ class RoutersploitTool(Tool):
     category = "PS"
     level = "L1"
     binary = "routersploit"
-    description = "路由器/IoT 常见漏洞自动探测"
+    description = "Automated router/IoT known-vuln probing"
     requires = ["ip"]
     command_template = "routersploit --execute 'use scanners/autopwn; set target {ip}; run'"
 
@@ -42,7 +43,7 @@ class RoutersploitTool(Tool):
             findings.append(
                 {
                     "severity": "high",
-                    "title": "命中已知漏洞模块",
+                    "title": "Matched known-vuln module",
                     "detail": target,
                 }
             )
@@ -51,8 +52,8 @@ class RoutersploitTool(Tool):
             findings.append(
                 {
                     "severity": "high",
-                    "title": "RouterSploit: 检测到可利用漏洞",
-                    "detail": "详见 evidence 日志（未能解析出具体模块）",
+                    "title": "RouterSploit: exploitable vulnerability detected",
+                    "detail": "see evidence log (could not parse the specific module)",
                 }
             )
         return findings

@@ -1,9 +1,11 @@
-"""feroxbuster —— 高性能目录/文件枚举，解析 --json (ndjson) 输出为发现路径 findings。
+"""feroxbuster -- high-performance directory/file enumeration; parse --json
+(ndjson) output into found-path findings.
 
-feroxbuster --json 把每条结果写成一行 JSON（newline-delimited JSON）：
+With --json, feroxbuster writes one JSON object per line (newline-delimited JSON):
   {"type":"response","url":"http://x/admin","status":200,"content_length":1234,...}
-  {"type":"statistics",...}                # 汇总行，忽略
-只取 type==response 的行。命中敏感关键词的路径标 low，其余 info（与 dirsearch 同口径）。
+  {"type":"statistics",...}                # summary line, ignored
+Only type==response lines are taken. Paths matching sensitive keywords -> low,
+others -> info (same convention as dirsearch).
 """
 from __future__ import annotations
 
@@ -13,7 +15,7 @@ from typing import List
 
 from .base import Tool
 
-# 与 dirsearch 一致的敏感路径关键词（管理面 / 备份 / 源码泄露 / 凭据）
+# same sensitive-path keywords as dirsearch (admin / backup / source leak / creds)
 _SENSITIVE = (
     "admin", "login", "config", "backup", "bak", "sql", "db",
     "passwd", "password", "secret", "private", "key", "token",
@@ -28,10 +30,11 @@ class FeroxbusterTool(Tool):
     category = "CP"
     level = "L1"
     binary = "feroxbuster"
-    description = "高性能目录/文件枚举"
+    description = "High-performance directory/file enumeration"
     requires = ["portal_url"]
-    # -w 必填，否则 feroxbuster 直接报错退出。dirb 的 common.txt 是 Kali 自带字典，
-    # 作为安全默认；想换更大的字典改这里（或装 seclists 后指向 raft-*-directories.txt）。
+    # -w is required, otherwise feroxbuster errors out immediately. dirb's
+    # common.txt ships with Kali and is a safe default; point this at a bigger
+    # list (e.g. seclists raft-*-directories.txt) if you want more coverage.
     command_template = (
         "feroxbuster -u {portal_url} -w /usr/share/wordlists/dirb/common.txt "
         "--json --output {evidence}.json"
@@ -68,7 +71,7 @@ class FeroxbusterTool(Tool):
             findings.append(
                 {
                     "severity": "low" if sensitive else "info",
-                    "title": f"发现路径 {url}",
+                    "title": f"Found path {url}",
                     "detail": detail,
                 }
             )

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Parser 冒烟测试 —— 在没有真实二进制的机器（如 Windows）也能跑。
+"""Parser smoke tests -- runnable on a machine without the real binaries (e.g. Windows).
 
-给每个 parser 喂一段真实形态的样例输出，断言解析出的 findings 数量 / 严重度符合预期。
-直接 `python tests/test_parsers.py` 运行（零依赖，不需要 pytest）；
-也兼容 pytest（函数名 test_*）。
+Feed each parser a realistic sample of tool output and assert the findings count /
+severity. Run directly with `python tests/test_parsers.py` (zero deps, no pytest
+needed); also pytest-compatible (test_* function names).
 """
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ def _sev_counts(findings):
     return out
 
 
-# ---------- 文件型 parser（companion 文件） ----------
+# ---------- file-based parsers (companion files) ----------
 
 def test_nmap():
     ev = _evidence("nmap_PS-1")
@@ -93,7 +93,7 @@ def test_feroxbuster():
     )
     f = FeroxbusterTool().parse("", ev)
     c = _sev_counts(f)
-    assert c.get("low") == 1 and c.get("info") == 1, f  # statistics 行被忽略
+    assert c.get("low") == 1 and c.get("info") == 1, f  # statistics line ignored
 
 
 def test_firmwalker():
@@ -113,7 +113,7 @@ def test_firmwalker():
     assert len(f) == 3 and all(x["severity"] == "high" for x in f), f
 
 
-# ---------- stdout 型 parser（解析 raw） ----------
+# ---------- stdout-based parsers (parse raw) ----------
 
 def test_sqlmap():
     raw = (
@@ -202,7 +202,7 @@ def test_routersploit():
     assert len(f) == 1 and f[0]["severity"] == "high", f
 
 
-# ---------- report 聚合 ----------
+# ---------- report aggregation ----------
 
 def test_report_summary():
     report = {
@@ -210,13 +210,13 @@ def test_report_summary():
         "dut": {"toe_name": "TestDUT", "model": "X1", "ip": "192.168.1.1"},
         "results": [
             {"tool": "nmap", "test": "PS-1", "category": "PS", "status": "done",
-             "findings": [{"severity": "info", "title": "开放端口 80", "detail": "http"}]},
+             "findings": [{"severity": "info", "title": "Open port 80", "detail": "http"}]},
             {"tool": "hydra", "test": "AU-1", "category": "AU", "status": "done",
-             "findings": [{"severity": "high", "title": "弱口令", "detail": "admin/admin"}]},
+             "findings": [{"severity": "high", "title": "weak cred", "detail": "admin/admin"}]},
             {"tool": "mobsf", "test": "MA-2", "category": "MA", "status": "manual",
-             "findings": [], "note": "需起 MobSF server"},
+             "findings": [], "note": "needs MobSF server"},
             {"tool": "testssl", "test": "CO-3", "category": "CO",
-             "status": "skipped-no-binary", "findings": [], "note": "未装 testssl.sh"},
+             "status": "skipped-no-binary", "findings": [], "note": "testssl.sh not installed"},
         ],
     }
     s = report_mod.build_summary(report)
@@ -225,9 +225,9 @@ def test_report_summary():
     assert s["status_counts"] == {"ran": 2, "skipped": 1, "manual": 1, "failed": 0}, s
     assert len(s["follow_up"]) == 2, s
     md = report_mod.render_markdown(report, s, "results/x.json")
-    assert "# CLS 测试结果汇总" in md and "需人工跟进" in md
-    assert "PS — Ports and Services" in md and "AU — Authentication" in md
-    # category 缺失时从 test 前缀回退
+    assert "# CLS Test Result Summary" in md and "Manual Follow-up" in md
+    assert "PS - Ports and Services" in md and "AU - Authentication" in md
+    # category falls back to the test prefix when absent
     assert report_mod._category({"test": "CP-1"}) == "CP"
 
 

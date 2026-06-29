@@ -1,4 +1,4 @@
-"""执行引擎 —— 按顺序跑一条工具流水线，落证据 + 结构化结果。"""
+"""Execution engine -- run one tool pipeline in order, save evidence + structured results."""
 from __future__ import annotations
 
 import json
@@ -22,33 +22,33 @@ def run_pipeline(dut: dict, tools: List[Tool]) -> dict:
         label = f"[{idx}/{len(tools)}] {tool.id} ({tool.test})"
 
         if not tool.auto:
-            print(f"{label}  →  人工/硬件，跳过执行（已记为占位）")
+            print(f"{label}  ->  manual/hardware, skipped (recorded as placeholder)")
             results.append(tool.run(dut, EVIDENCE_DIR))
             continue
 
         if not tool.available():
-            print(f"{label}  →  跳过：未安装 {tool.binary}")
+            print(f"{label}  ->  skipped: {tool.binary} not installed")
             results.append({
                 "tool": tool.id, "test": tool.test, "category": tool.category,
                 "level": tool.level, "status": "skipped-no-binary", "findings": [],
-                "note": f"本机未安装 {tool.binary}",
+                "note": f"{tool.binary} not installed on this host",
             })
             continue
 
         missing = tool.missing_fields(dut)
         if missing:
-            print(f"{label}  →  跳过：DUT 缺字段 {missing}")
+            print(f"{label}  ->  skipped: DUT missing fields {missing}")
             results.append({
                 "tool": tool.id, "test": tool.test, "category": tool.category,
                 "level": tool.level, "status": "skipped-missing-fields", "findings": [],
-                "note": f"DUT 缺字段: {', '.join(missing)}",
+                "note": f"DUT missing fields: {', '.join(missing)}",
             })
             continue
 
-        print(f"{label}  →  执行中…")
+        print(f"{label}  ->  running...")
         res = tool.run(dut, EVIDENCE_DIR)
         n = len(res.get("findings", []))
-        print(f"{label}  →  {res['status']}（{n} findings）")
+        print(f"{label}  ->  {res['status']} ({n} findings)")
         results.append(res)
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")

@@ -1,4 +1,4 @@
-"""nmap —— 端口/服务扫描，解析 XML 输出为开放端口 findings。"""
+"""nmap -- port/service scan; parse XML output into open-port findings."""
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
@@ -14,7 +14,7 @@ class NmapTool(Tool):
     category = "PS"
     level = "L1"
     binary = "nmap"
-    description = "扫描 DUT 开放端口与服务版本"
+    description = "Scan DUT open ports and service versions"
     requires = ["ip"]
     command_template = "nmap -sV -O -oX {evidence}.xml {ip}"
 
@@ -43,7 +43,7 @@ class NmapTool(Tool):
                 findings.append(
                     {
                         "severity": "info",
-                        "title": f"开放端口 {portid}/{proto}",
+                        "title": f"Open port {portid}/{proto}",
                         "detail": detail or name,
                     }
                 )

@@ -1,9 +1,9 @@
-"""commix —— 命令注入检测，从 stdout 提取命令注入结论 findings。
+"""commix -- command injection check; extract command-injection verdicts from stdout.
 
-commix 同样没有稳定 JSON，结论在 stdout：
+commix likewise has no stable JSON; the verdict is in stdout:
   - "The (GET) 'id' parameter is vulnerable to ... command injection"
   - "the back-end operating system is Linux"
-解析 raw 抓这些 marker。
+Parse raw stdout for these markers.
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from typing import List
 
 from .base import Tool
 
-# commix 的漏洞行，参数名与注入类型在引号 / 括号里
+# commix's vuln line: parameter name and injection type are in quotes / parens
 _VULN_RE = re.compile(
     r"the\s*\(([^)]*)\)\s*'?([^'\s]+)'?\s*parameter is vulnerable to (.+?command injection)",
     re.IGNORECASE,
@@ -27,7 +27,7 @@ class CommixTool(Tool):
     category = "CP"
     level = "L1"
     binary = "commix"
-    description = "配置门户命令注入检测"
+    description = "Command injection check on the config portal"
     requires = ["portal_url"]
     command_template = "commix --url={portal_url} --batch"
 
@@ -39,7 +39,7 @@ class CommixTool(Tool):
             findings.append(
                 {
                     "severity": "high",
-                    "title": f"命令注入: {where}参数 {param}",
+                    "title": f"Command injection: {where}parameter {param}",
                     "detail": kind,
                 }
             )
@@ -47,7 +47,7 @@ class CommixTool(Tool):
             findings.append(
                 {
                     "severity": "info",
-                    "title": "后端操作系统识别",
+                    "title": "Back-end OS identified",
                     "detail": m.group(1),
                 }
             )
@@ -58,8 +58,8 @@ class CommixTool(Tool):
             findings.append(
                 {
                     "severity": "high",
-                    "title": "命令注入: 检测到可注入点",
-                    "detail": "详见 evidence 日志（未能解析出具体参数）",
+                    "title": "Command injection: injectable point detected",
+                    "detail": "see evidence log (could not parse the specific parameter)",
                 }
             )
         return findings
